@@ -1,0 +1,14 @@
+# Dependencies
+node_modules
+
+# Local environment files
+.env
+
+# Build output
+dist
+
+# macOS files
+.DS_Store
+
+# Vite cache
+node_modules/.vite
