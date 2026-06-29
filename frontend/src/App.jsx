@@ -35,17 +35,29 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
+  const [validationError, setValidationError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => {
+      setToast(null);
+    }, 3200);
+  };
 
   const sections = ['Dashboard', 'Customers', 'Products', 'Deliveries', 'Subscriptions'];
 
   const sectionConfig = {
     Dashboard: {
       title: 'Dashboard',
+      description: 'Track your dairy business with quick summaries and recent activity from every section.',
     },
     Customers: {
       endpoint: '/api/customers',
       list: customers,
       setList: setCustomers,
+      description: 'Add and manage customer contacts with quick search and easy editing.',
       initialForm: { name: '', phone: '', address: '' },
       fields: [
         { name: 'name', label: 'Name', type: 'text' },
@@ -59,6 +71,7 @@ function App() {
       endpoint: '/api/products',
       list: products,
       setList: setProducts,
+      description: 'Maintain product catalog details and pricing for daily inventory management.',
       initialForm: { product_name: '', unit: '', price_per_unit: '', is_active: false },
       fields: [
         { name: 'product_name', label: 'Product Name', type: 'text' },
@@ -73,6 +86,7 @@ function App() {
       endpoint: '/api/deliveries',
       list: deliveries,
       setList: setDeliveries,
+      description: 'Record daily deliveries with customer, product, quantity and session details.',
       initialForm: {
         customer_id: '',
         product_id: '',
@@ -98,6 +112,7 @@ function App() {
       endpoint: '/api/subscriptions',
       list: subscriptions,
       setList: setSubscriptions,
+      description: 'Manage recurring subscription plans to keep customer milk orders on schedule.',
       initialForm: {
         customer_id: '',
         product_id: '',
@@ -117,11 +132,28 @@ function App() {
     },
   };
 
+  const sectionIcons = {
+    Dashboard: '📊',
+    Customers: '👥',
+    Products: '🧾',
+    Deliveries: '🚚',
+    Subscriptions: '🔁',
+  };
+
   const currentConfig = sectionConfig[selectedSection];
+
+  const sectionSummary = {
+    Dashboard: 'A live snapshot of your dairy business activity and recent records.',
+    Customers: `${customers.length} customers stored`,
+    Products: `${products.length} products available`,
+    Deliveries: `${deliveries.length} deliveries recorded`,
+    Subscriptions: `${subscriptions.filter((item) => item.is_active).length} active subscriptions`,
+  };
 
   const refreshData = async () => {
     setLoading(true);
     setError('');
+    setValidationError('');
     setStatusMessage('');
 
     try {
@@ -149,15 +181,49 @@ function App() {
 
   useEffect(() => {
     if (selectedSection !== 'Dashboard' && currentConfig) {
-      setFormData(currentConfig.initialForm);
+      setFormData({ ...currentConfig.initialForm });
       setEditingId(null);
       setStatusMessage('');
       setError('');
+      setValidationError('');
+      setSearchTerm('');
     }
   }, [selectedSection]);
 
   const handleSectionChange = (section) => {
     setSelectedSection(section);
+  };
+
+  const validateForm = (payload) => {
+    if (selectedSection === 'Customers') {
+      if (!payload.name?.toString().trim()) return 'Customer name is required.';
+      if (!payload.phone?.toString().trim()) return 'Phone number is required.';
+      if (payload.phone.toString().trim().length < 10) return 'Phone number must be at least 10 digits.';
+      if (!payload.address?.toString().trim()) return 'Address is required.';
+    }
+
+    if (selectedSection === 'Products') {
+      if (!payload.product_name?.toString().trim()) return 'Product name is required.';
+      if (!payload.unit?.toString().trim()) return 'Unit is required.';
+      if (!payload.price_per_unit || Number(payload.price_per_unit) <= 0) return 'Price must be greater than zero.';
+    }
+
+    if (selectedSection === 'Deliveries') {
+      if (!payload.customer_id || Number(payload.customer_id) <= 0) return 'Valid customer ID is required.';
+      if (!payload.product_id || Number(payload.product_id) <= 0) return 'Valid product ID is required.';
+      if (!payload.delivery_date) return 'Delivery date is required.';
+      if (!payload.quantity || Number(payload.quantity) <= 0) return 'Quantity must be greater than zero.';
+      if (!payload.price_per_unit || Number(payload.price_per_unit) <= 0) return 'Price must be greater than zero.';
+    }
+
+    if (selectedSection === 'Subscriptions') {
+      if (!payload.customer_id || Number(payload.customer_id) <= 0) return 'Valid customer ID is required.';
+      if (!payload.product_id || Number(payload.product_id) <= 0) return 'Valid product ID is required.';
+      if (!payload.morning_quantity && Number(payload.morning_quantity) !== 0) return 'Morning quantity is required.';
+      if (!payload.evening_quantity && Number(payload.evening_quantity) !== 0) return 'Evening quantity is required.';
+    }
+
+    return null;
   };
 
   const preparePayload = (data) => {
@@ -193,6 +259,16 @@ function App() {
       payload.is_active = Boolean(payload.is_active);
     }
 
+    const validationMessage = validateForm(payload);
+    if (validationMessage) {
+      setValidationError(validationMessage);
+      setError('');
+      setStatusMessage('');
+      return;
+    }
+
+    setValidationError('');
+
     try {
       setError('');
       const endpoint = editingId ? `${currentConfig.endpoint}/${editingId}` : currentConfig.endpoint;
@@ -200,11 +276,14 @@ function App() {
 
       await apiRequest(endpoint, method, payload);
       await refreshData();
-      setStatusMessage(editingId ? 'Record updated successfully.' : 'Record created successfully.');
+      const successMessage = editingId ? 'Record updated successfully.' : 'Record created successfully.';
+      setStatusMessage(successMessage);
+      showToast(successMessage, 'success');
       setEditingId(null);
       setFormData(currentConfig.initialForm);
     } catch (err) {
       setError(err.message);
+      showToast(err.message, 'error');
       setStatusMessage('');
     }
   };
@@ -213,6 +292,7 @@ function App() {
     setEditingId(item.id);
     setFormData({ ...item });
     setSelectedSection(selectedSection);
+    setValidationError('');
     setStatusMessage('Editing record. Save to update.');
   };
 
@@ -224,11 +304,15 @@ function App() {
 
     try {
       setError('');
+      setValidationError('');
       await apiRequest(`${currentConfig.endpoint}/${item.id}`, 'DELETE');
       await refreshData();
-      setStatusMessage('Record deleted successfully.');
+      const deleteMessage = 'Record deleted successfully.';
+      setStatusMessage(deleteMessage);
+      showToast(deleteMessage, 'success');
     } catch (err) {
       setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -236,18 +320,43 @@ function App() {
     setFormData((current) => ({ ...current, [field]: value }));
   };
 
+  const getFilteredList = () => {
+    if (!currentConfig || selectedSection === 'Dashboard') return [];
+
+    const sourceList = currentConfig.list || [];
+    if (!searchTerm.trim()) return sourceList;
+
+    const term = searchTerm.toLowerCase();
+    return sourceList.filter((item) => JSON.stringify(item).toLowerCase().includes(term));
+  };
+
   const renderTable = () => {
     if (!currentConfig || selectedSection === 'Dashboard') {
       return null;
     }
 
-    const list = currentConfig.list || [];
+    const list = getFilteredList();
 
     return (
       <div className="table-card">
         <div className="panel-title-row">
-          <h2>{selectedSection} List</h2>
-          <span>{list.length} records</span>
+          <div>
+            <h2>{selectedSection} List</h2>
+            <span>Manage your records with search, edit and delete controls.</span>
+          </div>
+          <button type="button" className="button outline" onClick={refreshData}>
+            Refresh
+          </button>
+        </div>
+        <div className="table-toolbar">
+          <input
+            type="text"
+            placeholder={`Search ${selectedSection.toLowerCase()}...`}
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="search-input"
+          />
+          <span className="table-meta">Showing {list.length} of {currentConfig.list.length}</span>
         </div>
         <div className="table-scroll">
           <table>
@@ -261,22 +370,30 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {list.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  {currentConfig.rowValue(item).map((value, index) => (
-                    <td key={index}>{value ?? '-'}</td>
-                  ))}
-                  <td className="actions-cell">
-                    <button type="button" className="button secondary" onClick={() => handleEdit(item)}>
-                      Edit
-                    </button>
-                    <button type="button" className="button danger" onClick={() => handleDelete(item)}>
-                      Delete
-                    </button>
+              {list.length > 0 ? (
+                list.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.id}</td>
+                    {currentConfig.rowValue(item).map((value, index) => (
+                      <td key={index}>{value ?? '-'}</td>
+                    ))}
+                    <td className="actions-cell">
+                      <button type="button" className="button secondary" onClick={() => handleEdit(item)}>
+                        Edit
+                      </button>
+                      <button type="button" className="button danger" onClick={() => handleDelete(item)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={currentConfig.columns.length + 2} className="empty-row">
+                    No matching records found.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -328,8 +445,9 @@ function App() {
               type="button"
               className="button outline"
               onClick={() => {
-                setFormData(currentConfig.initialForm);
+                setFormData({ ...currentConfig.initialForm });
                 setEditingId(null);
+                setValidationError('');
                 setStatusMessage('Form reset.');
               }}
             >
@@ -343,89 +461,137 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">ASN Dairy Hub</p>
-          <h1>Full CRUD Management</h1>
-          <p className="hero-copy">Manage customers, products, deliveries and subscriptions directly from the frontend.</p>
-        </div>
-        <nav className="nav-tabs">
-          {sections.map((section) => (
-            <button
-              key={section}
-              type="button"
-              className={selectedSection === section ? 'tab active' : 'tab'}
-              onClick={() => handleSectionChange(section)}
-            >
-              {section}
+      <div className="page-grid">
+        <aside className="sidebar">
+          <div className="brand-card">
+            <p className="eyebrow">ASN Dairy Hub</p>
+            <h2>Operations</h2>
+            <p className="sidebar-copy">Use the sidebar to navigate between customers, products, deliveries and subscriptions.</p>
+          </div>
+
+          <nav className="sidebar-nav">
+            {sections.map((section) => (
+              <button
+                key={section}
+                type="button"
+                className={selectedSection === section ? 'tab active sidebar-tab' : 'tab sidebar-tab'}
+                onClick={() => handleSectionChange(section)}
+              >
+                <span>{sectionIcons[section]}</span>
+                {section}
+              </button>
+            ))}
+          </nav>
+
+          <div className="sidebar-summary">
+            <h3>Section summary</h3>
+            <p>{sectionSummary[selectedSection]}</p>
+            <button type="button" className="button outline small" onClick={refreshData}>
+              Refresh data
             </button>
-          ))}
-        </nav>
-      </header>
+          </div>
+        </aside>
 
-      {statusMessage && <p className="status success">{statusMessage}</p>}
-      {error && <p className="status error">{error}</p>}
-
-      {loading ? (
-        <p className="status">Loading application data...</p>
-      ) : selectedSection === 'Dashboard' ? (
-        <>
-          <section className="stats-grid">
-            <article className="stat-card">
-              <span>Customers</span>
-              <strong>{customers.length}</strong>
-            </article>
-            <article className="stat-card">
-              <span>Products</span>
-              <strong>{products.length}</strong>
-            </article>
-            <article className="stat-card">
-              <span>Deliveries</span>
-              <strong>{deliveries.length}</strong>
-            </article>
-            <article className="stat-card">
-              <span>Subscriptions</span>
-              <strong>{subscriptions.length}</strong>
-            </article>
-          </section>
-
-          <section className="panel-grid">
-            <div className="panel">
-              <div className="panel-title-row">
-                <h2>Customers</h2>
-                <span>Primary contacts</span>
-              </div>
-              <ul className="item-list">
-                {customers.slice(0, 5).map((customer) => (
-                  <li key={customer.id}>
-                    <strong>{customer.name}</strong>
-                    <span>{customer.phone}</span>
-                  </li>
-                ))}
-              </ul>
+        <main className="content-area">
+          {statusMessage && <p className="status success">{statusMessage}</p>}
+          {validationError && <p className="status error">{validationError}</p>}
+          {error && <p className="status error">{error}</p>}
+          {toast && (
+            <div className={`toast ${toast.type}`}>
+              <p>{toast.message}</p>
             </div>
-            <div className="panel">
-              <div className="panel-title-row">
-                <h2>Products</h2>
-                <span>Inventory</span>
+          )}
+
+          <header className="page-header">
+            <div className="page-title">
+              <span className="section-icon">{sectionIcons[selectedSection]}</span>
+              <div>
+                <p className="eyebrow">{selectedSection}</p>
+                <h1>{selectedSection === 'Dashboard' ? 'Business overview' : currentConfig.description}</h1>
+                <p className="section-copy">{sectionSummary[selectedSection]}</p>
               </div>
-              <ul className="item-list">
-                {products.slice(0, 5).map((product) => (
-                  <li key={product.id}>
-                    <strong>{product.product_name}</strong>
-                    <span>₹{product.price_per_unit}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
-          </section>
-        </>
-      ) : (
-        <div className="content-grid">
-          {renderForm()}
-          {renderTable()}
-        </div>
-      )}
+            <div className="page-actions">
+              <button type="button" className="button outline" onClick={refreshData}>
+                Refresh all
+              </button>
+            </div>
+          </header>
+
+          {loading ? (
+            <p className="status">Loading application data...</p>
+          ) : selectedSection === 'Dashboard' ? (
+            <>
+              <section className="stats-grid">
+                <article className="stat-card">
+                  <span>Customers</span>
+                  <strong>{customers.length}</strong>
+                </article>
+                <article className="stat-card">
+                  <span>Products</span>
+                  <strong>{products.length}</strong>
+                </article>
+                <article className="stat-card">
+                  <span>Deliveries</span>
+                  <strong>{deliveries.length}</strong>
+                </article>
+                <article className="stat-card">
+                  <span>Subscriptions</span>
+                  <strong>{subscriptions.length}</strong>
+                </article>
+              </section>
+
+              <section className="panel-grid">
+                <div className="panel">
+                  <div className="panel-title-row">
+                    <h2>Customers</h2>
+                    <span>Primary contacts</span>
+                  </div>
+                  <ul className="item-list">
+                    {customers.slice(0, 5).map((customer) => (
+                      <li key={customer.id}>
+                        <strong>{customer.name}</strong>
+                        <span>{customer.phone}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="panel">
+                  <div className="panel-title-row">
+                    <h2>Products</h2>
+                    <span>Inventory</span>
+                  </div>
+                  <ul className="item-list">
+                    {products.slice(0, 5).map((product) => (
+                      <li key={product.id}>
+                        <strong>{product.product_name}</strong>
+                        <span>₹{product.price_per_unit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              <div className="panel-title-row section-description">
+                <div>
+                  <h2>{selectedSection}</h2>
+                  <p>{currentConfig.description}</p>
+                </div>
+                <div className="section-label">
+                  <span>{sectionIcons[selectedSection]}</span>
+                  <strong>{sectionSummary[selectedSection]}</strong>
+                </div>
+              </div>
+              <div className="content-grid">
+                {renderForm()}
+                {renderTable()}
+              </div>
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
