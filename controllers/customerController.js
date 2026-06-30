@@ -1,85 +1,95 @@
 const supabase = require("../config/supabase");
+const { sendSuccess, sendError } = require("../utils/response");
+const { normalizePayload, validateRequiredFields } = require("../utils/validation");
 
-// CREATE
+const CUSTOMER_TABLE = "customers";
+
+const buildCustomerPayload = (body) => {
+  const payload = normalizePayload(body);
+  const missingFields = validateRequiredFields(payload, ["name", "phone", "address"]);
+
+  if (missingFields.length) {
+    throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+  }
+
+  return {
+    name: payload.name?.toString().trim(),
+    phone: payload.phone?.toString().trim(),
+    address: payload.address?.toString().trim(),
+  };
+};
+
 exports.createCustomer = async (req, res) => {
-  const { name, phone, address } = req.body;
+  try {
+    const payload = buildCustomerPayload(req.body);
+    const { data, error } = await supabase.from(CUSTOMER_TABLE).insert([payload]).select();
 
-  const { data, error } = await supabase
-    .from("customers")
-    .insert([{ name, phone, address }])
-    .select();
+    if (error) {
+      return sendError(res, error.message, 400);
+    }
 
-  if (error) {
-    return res.status(400).json({ success: false, error: error.message });
+    return sendSuccess(res, data, 201);
+  } catch (err) {
+    return sendError(res, err.message, 400);
   }
-
-  res.status(201).json({ success: true, data });
 };
 
-// READ ALL
 exports.getCustomers = async (req, res) => {
-  const { data, error } = await supabase
-    .from("customers")
-    .select("*")
-    .order("id", { ascending: true });
+  try {
+    const { data, error } = await supabase.from(CUSTOMER_TABLE).select("*").order("id", { ascending: true });
 
-  if (error) {
-    return res.status(400).json({ success: false, error: error.message });
+    if (error) {
+      return sendError(res, error.message, 400);
+    }
+
+    return sendSuccess(res, data);
+  } catch (err) {
+    return sendError(res, err.message, 500);
   }
-
-  res.json({ success: true, data });
 };
 
-// READ ONE
 exports.getCustomerById = async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase.from(CUSTOMER_TABLE).select("*").eq("id", id).single();
 
-  const { data, error } = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", id)
-    .single();
+    if (error) {
+      return sendError(res, error.message, 404);
+    }
 
-  if (error) {
-    return res.status(404).json({ success: false, error: error.message });
+    return sendSuccess(res, data);
+  } catch (err) {
+    return sendError(res, err.message, 500);
   }
-
-  res.json({ success: true, data });
 };
 
-// UPDATE
 exports.updateCustomer = async (req, res) => {
-  const { id } = req.params;
-  const { name, phone, address } = req.body;
+  try {
+    const { id } = req.params;
+    const payload = buildCustomerPayload(req.body);
+    const { data, error } = await supabase.from(CUSTOMER_TABLE).update(payload).eq("id", id).select();
 
-  const { data, error } = await supabase
-    .from("customers")
-    .update({ name, phone, address })
-    .eq("id", id)
-    .select();
+    if (error) {
+      return sendError(res, error.message, 400);
+    }
 
-  if (error) {
-    return res.status(400).json({ success: false, error: error.message });
+    return sendSuccess(res, data);
+  } catch (err) {
+    return sendError(res, err.message, 400);
   }
-
-  res.json({ success: true, data });
 };
 
-// DELETE
 exports.deleteCustomer = async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const { error } = await supabase.from(CUSTOMER_TABLE).delete().eq("id", id);
 
-  const { error } = await supabase
-    .from("customers")
-    .delete()
-    .eq("id", id);
+    if (error) {
+      return sendError(res, error.message, 400);
+    }
 
-  if (error) {
-    return res.status(400).json({ success: false, error: error.message });
+    return res.status(200).json({ success: true, message: "Customer deleted successfully" });
+  } catch (err) {
+    return sendError(res, err.message, 500);
   }
-
-  res.json({
-    success: true,
-    message: "Customer deleted successfully",
-  });
 };
