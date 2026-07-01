@@ -1,172 +1,99 @@
 const supabase = require("../config/supabase");
+const { sendSuccess, sendError } = require("../utils/response");
+const { normalizePayload, validateRequiredFields } = require("../utils/validation");
 
-// Create Delivery
+const DELIVERY_TABLE = "daily_deliveries";
+
+const buildDeliveryPayload = (body) => {
+  const payload = normalizePayload(body);
+  const missingFields = validateRequiredFields(payload, ["customer_id", "product_id", "delivery_date", "quantity", "price_per_unit"]);
+
+  if (missingFields.length) {
+    throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+  }
+
+  return {
+    customer_id: Number(payload.customer_id),
+    product_id: Number(payload.product_id),
+    delivery_date: payload.delivery_date,
+    session: payload.session?.toString().trim() || null,
+    quantity: Number(payload.quantity),
+    price_per_unit: Number(payload.price_per_unit),
+    remarks: payload.remarks?.toString().trim() || null,
+  };
+};
+
 exports.createDelivery = async (req, res) => {
   try {
-    const {
-      customer_id,
-      product_id,
-      delivery_date,
-      session,
-      quantity,
-      price_per_unit,
-      remarks,
-    } = req.body;
-
-    const { data, error } = await supabase
-      .from("daily_deliveries")
-      .insert([
-        {
-          customer_id,
-          product_id,
-          delivery_date,
-          session,
-          quantity,
-          price_per_unit,
-          remarks,
-        },
-      ])
-      .select();
+    const payload = buildDeliveryPayload(req.body);
+    const { data, error } = await supabase.from(DELIVERY_TABLE).insert([payload]).select();
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.status(201).json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, data, 201);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 400);
   }
 };
 
-// Get All Deliveries
 exports.getDeliveries = async (req, res) => {
-  const { data, error } = await supabase
-    .from("daily_deliveries")
-    .select("*")
-    .order("delivery_date", { ascending: false });
+  try {
+    const { data, error } = await supabase.from(DELIVERY_TABLE).select("*").order("delivery_date", { ascending: false });
 
-  if (error) {
-    return res.status(400).json({
-      success: false,
-      error: error.message,
-    });
+    if (error) {
+      return sendError(res, error.message, 400);
+    }
+
+    return sendSuccess(res, data);
+  } catch (err) {
+    return sendError(res, err.message, 500);
   }
-
-  res.json({
-    success: true,
-    data,
-  });
 };
 
 exports.getDeliveryById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { data, error } = await supabase
-      .from("daily_deliveries")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { data, error } = await supabase.from(DELIVERY_TABLE).select("*").eq("id", id).single();
 
     if (error) {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 404);
     }
 
-    res.json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, data);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 500);
   }
 };
 
 exports.updateDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const {
-      customer_id,
-      product_id,
-      delivery_date,
-      session,
-      quantity,
-      price_per_unit,
-      remarks,
-    } = req.body;
-
-    const { data, error } = await supabase
-      .from("daily_deliveries")
-      .update({
-        customer_id,
-        product_id,
-        delivery_date,
-        session,
-        quantity,
-        price_per_unit,
-        remarks,
-      })
-      .eq("id", id)
-      .select();
+    const payload = buildDeliveryPayload(req.body);
+    const { data, error } = await supabase.from(DELIVERY_TABLE).update(payload).eq("id", id).select();
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, data);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 400);
   }
 };
 
 exports.deleteDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { error } = await supabase
-      .from("daily_deliveries")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from(DELIVERY_TABLE).delete().eq("id", id);
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.json({
-      success: true,
-      message: "Delivery deleted successfully",
-    });
+    return res.status(200).json({ success: true, message: "Delivery deleted successfully" });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 500);
   }
 };
