@@ -42,9 +42,9 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="app-shell">
-      <div className="page-grid" style={{ gridTemplateColumns: '1fr', padding: '40px 0' }}>
-        <div className="form-card" style={{ maxWidth: 520, margin: '0 auto' }}>
+    <div className="app-shell auth-shell">
+      <div className="page-grid auth-grid">
+        <div className="form-card auth-card">
           <div className="panel-title-row">
             <div>
               <h2>Create your account</h2>
