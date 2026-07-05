@@ -1,172 +1,97 @@
 const supabase = require("../config/supabase");
+const { sendSuccess, sendError } = require("../utils/response");
+const { normalizePayload, validateRequiredFields } = require("../utils/validation");
 
-// Create Subscription
+const SUBSCRIPTION_TABLE = "customer_subscriptions";
+
+const buildSubscriptionPayload = (body) => {
+  const payload = normalizePayload(body);
+  const missingFields = validateRequiredFields(payload, ["customer_id", "product_id", "morning_quantity", "evening_quantity"]);
+
+  if (missingFields.length) {
+    throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+  }
+
+  return {
+    customer_id: Number(payload.customer_id),
+    product_id: Number(payload.product_id),
+    morning_quantity: Number(payload.morning_quantity),
+    evening_quantity: Number(payload.evening_quantity),
+    is_active: Boolean(payload.is_active),
+  };
+};
+
 exports.createSubscription = async (req, res) => {
   try {
-    const {
-      customer_id,
-      product_id,
-      morning_quantity,
-      evening_quantity,
-      is_active
-    } = req.body;
-
-    const { data, error } = await supabase
-      .from("customer_subscriptions")
-      .insert([
-        {
-          customer_id,
-          product_id,
-          morning_quantity,
-          evening_quantity,
-          is_active
-        }
-      ])
-      .select();
+    const payload = buildSubscriptionPayload(req.body);
+    const { data, error } = await supabase.from(SUBSCRIPTION_TABLE).insert([payload]).select();
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.status(201).json({
-      success: true,
-      data
-    });
+    return sendSuccess(res, data, 201);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
+    return sendError(res, err.message, 400);
   }
 };
 
-// Get All Subscriptions
 exports.getSubscriptions = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from("customer_subscriptions")
-      .select("*")
-      .order("id");
+    const { data, error } = await supabase.from(SUBSCRIPTION_TABLE).select("*").order("id");
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.json({
-      success: true,
-      data
-    });
+    return sendSuccess(res, data);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
+    return sendError(res, err.message, 500);
   }
 };
 
 exports.getSubscriptionById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { data, error } = await supabase
-      .from("customer_subscriptions")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
+    const { data, error } = await supabase.from(SUBSCRIPTION_TABLE).select("*").eq("id", id).maybeSingle();
 
     if (error) {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 404);
     }
 
-    res.status(200).json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, data);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 500);
   }
 };
 
 exports.updateSubscription = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const {
-      customer_id,
-      product_id,
-      morning_quantity,
-      evening_quantity,
-      is_active,
-    } = req.body;
-
-    const { data, error } = await supabase
-      .from("customer_subscriptions")
-      .update({
-        customer_id,
-        product_id,
-        morning_quantity,
-        evening_quantity,
-        is_active,
-      })
-      .eq("id", id)
-      .select();
+    const payload = buildSubscriptionPayload(req.body);
+    const { data, error } = await supabase.from(SUBSCRIPTION_TABLE).update(payload).eq("id", id).select();
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.status(200).json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, data);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 400);
   }
 };
 
 exports.deleteSubscription = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { error } = await supabase
-      .from("customer_subscriptions")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from(SUBSCRIPTION_TABLE).delete().eq("id", id);
 
     if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message,
-      });
+      return sendError(res, error.message, 400);
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Subscription deleted successfully",
-    });
+    return res.status(200).json({ success: true, message: "Subscription deleted successfully" });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return sendError(res, err.message, 500);
   }
 };
