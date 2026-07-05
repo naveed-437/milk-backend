@@ -11,7 +11,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="page-header" style={{ alignItems: 'center' }}>
+    <header className="topbar">
       <div className="page-title">
         <span className="section-icon">🥛</span>
         <div>
@@ -19,16 +19,28 @@ const Navbar = () => {
           <h1>Milk distribution management</h1>
         </div>
       </div>
-      <div className="page-actions" style={{ gap: '12px' }}>
+      <nav className="topbar-nav">
         {user ? (
           <>
-            <Link to="/" className="button outline" style={{ textDecoration: 'none' }}>
+            <Link to="/" className="topbar-link">
               Dashboard
             </Link>
-            <Link to="/products" className="button outline" style={{ textDecoration: 'none' }}>
+            <Link to="/products" className="topbar-link">
               Products
             </Link>
-            <span style={{ color: '#334155', fontWeight: 600 }}>{user.name}</span>
+            <Link to="/help" className="topbar-link">
+              Help
+            </Link>
+            <Link to="/customers" className="topbar-link">
+              Customers
+            </Link>
+            <Link to="/deliveries" className="topbar-link">
+              Deliveries
+            </Link>
+            <Link to="/subscriptions" className="topbar-link">
+              Subscriptions
+            </Link>
+            <span className="user-pill">{user.name}</span>
             <button type="button" className="button outline" onClick={handleLogout}>
               Logout
             </button>
@@ -38,7 +50,7 @@ const Navbar = () => {
             Login
           </Link>
         )}
-      </div>
+      </nav>
     </header>
   );
 };

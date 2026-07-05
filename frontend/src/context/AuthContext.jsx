@@ -15,6 +15,12 @@ export const AuthProvider = ({ children }) => {
     const response = await axiosInstance.post('/auth/login', credentials);
     const payload = response.data?.data ?? response.data;
     const { token, user: userData } = payload;
+
+    if (!token) {
+      setLoading(false);
+      throw new Error('Login succeeded but auth token was not returned. Please verify your account or try again.');
+    }
+
     localStorage.setItem('asnAuthToken', token);
     localStorage.setItem('asnUser', JSON.stringify(userData));
     setUser(userData);
@@ -27,6 +33,12 @@ export const AuthProvider = ({ children }) => {
     const response = await axiosInstance.post('/auth/register', payload);
     const authPayload = response.data?.data ?? response.data;
     const { token, user: userData } = authPayload;
+
+    if (!token) {
+      setLoading(false);
+      throw new Error('Registration succeeded but auth token was not returned. Please verify your account or try again.');
+    }
+
     localStorage.setItem('asnAuthToken', token);
     localStorage.setItem('asnUser', JSON.stringify(userData));
     setUser(userData);

@@ -3,8 +3,9 @@ import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = () => {
   const { user } = useAuth();
+  const token = localStorage.getItem('asnAuthToken');
 
-  if (!user) {
+  if (!user || !token) {
     return <Navigate to="/login" replace />;
   }
 

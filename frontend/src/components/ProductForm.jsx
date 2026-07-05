@@ -15,9 +15,9 @@ const ProductForm = ({ categories, selectedProduct, onSave, onCancel, loading })
     if (selectedProduct) {
       setFormData({
         product_name: selectedProduct.product_name || '',
-        category: selectedProduct.category || '',
+        category: selectedProduct.category || selectedProduct.unit || '',
         stock_quantity: selectedProduct.stock_quantity || '',
-        price: selectedProduct.price || '',
+        price: selectedProduct.price || selectedProduct.price_per_unit || '',
         description: selectedProduct.description || '',
         image: null,
         is_active: selectedProduct.is_active ?? true,
@@ -55,7 +55,7 @@ const ProductForm = ({ categories, selectedProduct, onSave, onCancel, loading })
   };
 
   return (
-    <div className="panel-card form-panel">
+    <div className="panel-card form-panel polished-panel">
       <div className="panel-title-row">
         <div>
           <h2>{selectedProduct ? 'Edit Product' : 'Add Product'}</h2>

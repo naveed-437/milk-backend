@@ -1,6 +1,6 @@
 const ProductTable = ({ products, onEdit, onDelete, pagination, onPageChange }) => {
   return (
-    <div className="panel-card table-panel">
+    <div className="panel-card table-panel polished-panel">
       <div className="panel-title-row">
         <div>
           <h2>Product catalog</h2>
@@ -13,8 +13,9 @@ const ProductTable = ({ products, onEdit, onDelete, pagination, onPageChange }) 
           <thead>
             <tr>
               <th></th>
+              <th>ID</th>
               <th>Product</th>
-              <th>Category</th>
+              <th>Category / Unit</th>
               <th>Stock</th>
               <th>Price</th>
               <th>Status</th>
@@ -34,10 +35,11 @@ const ProductTable = ({ products, onEdit, onDelete, pagination, onPageChange }) 
                   <td className="table-image-cell">
                     {product.image_url ? <img src={product.image_url} alt={product.product_name} /> : <span className="empty-image">No image</span>}
                   </td>
+                  <td>{product.id}</td>
                   <td>{product.product_name}</td>
-                  <td>{product.category}</td>
+                  <td>{product.category || product.unit || '-'}</td>
                   <td>{product.stock_quantity}</td>
-                  <td>₹{product.price}</td>
+                  <td>₹{product.price || product.price_per_unit || '-'}</td>
                   <td>{product.is_active ? 'Active' : 'Inactive'}</td>
                   <td className="table-actions-cell">
                     <button type="button" className="button secondary" onClick={() => onEdit(product)}>

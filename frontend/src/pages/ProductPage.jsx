@@ -31,8 +31,21 @@ const ProductPage = () => {
     try {
       const response = await axiosInstance.get(`/products?${queryParams}`);
       const { products: dataProducts, pagination: pageData } = response.data.data;
-      setProducts(dataProducts || []);
+      const productsLoaded = dataProducts || [];
+      setProducts(productsLoaded);
       setPagination(pageData || { page, pageSize, total: 0 });
+      if (!categories.length) {
+        const derivedCategories = Array.from(
+          new Set(
+            productsLoaded
+              .map((item) => item.category || item.unit)
+              .filter(Boolean)
+          )
+        ).sort();
+        if (derivedCategories.length) {
+          setCategories(derivedCategories);
+        }
+      }
     } catch (error) {
       setToast({ type: 'error', message: error.response?.data?.error || 'Failed to load products.' });
     } finally {
@@ -43,9 +56,17 @@ const ProductPage = () => {
   const fetchCategories = async () => {
     try {
       const response = await axiosInstance.get('/products/categories');
-      setCategories(response.data.data.categories || []);
+      setCategories(response.data.data?.categories || []);
     } catch (error) {
-      setToast({ type: 'error', message: 'Unable to fetch categories.' });
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Unable to fetch categories.';
+      setToast({ type: 'error', message });
+      if (error.response?.status === 401) {
+        window.location.href = '/login';
+      }
     }
   };
 
@@ -123,11 +144,13 @@ const ProductPage = () => {
 
   return (
     <div className="product-page page-shell">
-      <div className="panel-header">
-        <div>
+      <div className="panel-header product-page-header">
+        <div className="hero-copy">
           <p className="eyebrow">Product Management</p>
           <h1>Manage milk products with inventory, categories, and pricing.</h1>
+          <p>Keep stock, pricing, and product details aligned in one structured workspace.</p>
         </div>
+        <div className="product-page-badge">Inventory control</div>
       </div>
 
       <div className="product-grid">
